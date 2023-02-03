@@ -39,6 +39,7 @@ def doKMeans(colors, k, maxIterations, hyperIterations):
 	costHistory = []
 
 	# TODO: remember the best means we have already seen
+	# TODO: reuse the arrays
 	# TODO: add timing of iterations, maybe if it's stuck raise error
 	for i in range(maxIterations): # TODO: try to guess the optimal stopping point based on the costs
 		cost = adjustClusterCenters(colors, means, k, hyperIterations)
@@ -51,17 +52,20 @@ def applyColorPalette(img, colors, means):
 	return means[clusterIdx].reshape((img.shape[0], img.shape[1], 3))
 
 # UI ------------------------------------------
-def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, topBoundary=0.95):
+def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, boundaries=0.05):
 	diagWidth = (costHistory.shape[0] - startTimestep) * widthScale + 1
-	scalingFactor = topBoundary * height / np.max(costHistory[startTimestep:])
-	img = np.zeros((height, costHistory.shape[1] * diagWidth, 3), dtype='uint8')
+	# map the ranges (max, min) -> ((1-boundaries) * height, bot * height)
+	minCost = np.min(costHistory[startTimestep:])
+	dataSpread = np.max(costHistory[startTimestep:]) - minCost
+	scalingFactor = (1. - 2*boundaries) * height / dataSpread
+	img = np.zeros((height, hyperIterations * diagWidth, 3), dtype='uint8')
 	for historyIdx in range(hyperIterations):
-		heights = height - (costHistory[startTimestep:, historyIdx] * scalingFactor).astype('int32')
-		heights = np.minimum(heights, height-1)
+		heights = scalingFactor * (costHistory[startTimestep:, historyIdx] - minCost) + boundaries * height
+		heights = height - heights.astype('int32')
 		cols = np.arange(historyIdx * diagWidth, (historyIdx+1)*diagWidth - 1, widthScale)
 		for width in range(widthScale):
 			img[heights, cols + width] = [255, 255, 255]
-		img[:, historyIdx * diagWidth] = [255, 255, 255]
+		img[:, (historyIdx+1) * diagWidth - 1] = [255, 255, 255]
 	cv2.imshow(f'CostDiagram', img)
 
 def mouse_click(event, x, y, flags, param):
