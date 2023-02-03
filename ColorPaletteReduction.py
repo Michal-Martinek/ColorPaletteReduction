@@ -29,7 +29,7 @@ def adjustClusterCenters(colors, means, k, hyperIterations) -> int:
 				continue
 			means[hyperIdx, meanIdx] = np.sum(clusterPoints, axis=0) / clusterPoints.shape[0]
 	return costs
-def initMeans(colors, k, hyperIterations): # TODO: better init of means
+def initMeans(colors, k, hyperIterations): # TODO: better init of means, maybe pick ony ones with low cost
 	withoutRepeats = np.unique(colors, axis=0)
 	assert withoutRepeats.shape[0] > k, 'the k is too big'
 	meanIdxs = np.array([np.random.choice(np.arange(withoutRepeats.shape[0]), k, replace=False) for i in range(hyperIterations)])
@@ -39,6 +39,7 @@ def doKMeans(colors, k, maxIterations, hyperIterations):
 	costHistory = []
 
 	# TODO: remember the best means we have already seen
+	# TODO: add timing of iterations, maybe if it's stuck raise error
 	for i in range(maxIterations): # TODO: try to guess the optimal stopping point based on the costs
 		cost = adjustClusterCenters(colors, means, k, hyperIterations)
 		costHistory.append(cost)
@@ -50,18 +51,19 @@ def applyColorPalette(img, colors, means):
 	return means[clusterIdx].reshape((img.shape[0], img.shape[1], 3))
 
 # UI ------------------------------------------
-def showCostDiagrams(costHistory, hyperIterations): # TODO: join the diagrams into one surface
-	for i, historyIdx in enumerate(range(hyperIterations)):
-		diag = getCostsDiagram(costHistory[:, historyIdx])
-		cv2.imshow(f'CostDiagram_{i}', diag)
-def getCostsDiagram(costs):
-	desiredHeight = 300
-	scale = desiredHeight / max(costs)
-	img = np.zeros((desiredHeight, len(costs), 3), dtype='uint8')
-	heights = desiredHeight - (np.array(costs) * scale).astype('int32')
-	heights = np.minimum(heights, desiredHeight-1)
-	img[heights, np.arange(len(costs))] = [255, 255, 255]
-	return img
+def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, topBoundary=0.95):
+	diagWidth = (costHistory.shape[0] - startTimestep) * widthScale + 1
+	scalingFactor = topBoundary * height / np.max(costHistory[startTimestep:])
+	img = np.zeros((height, costHistory.shape[1] * diagWidth, 3), dtype='uint8')
+	for historyIdx in range(hyperIterations):
+		heights = height - (costHistory[startTimestep:, historyIdx] * scalingFactor).astype('int32')
+		heights = np.minimum(heights, height-1)
+		cols = np.arange(historyIdx * diagWidth, (historyIdx+1)*diagWidth - 1, widthScale)
+		for width in range(widthScale):
+			img[heights, cols + width] = [255, 255, 255]
+		img[:, historyIdx * diagWidth] = [255, 255, 255]
+	cv2.imshow(f'CostDiagram', img)
+
 def mouse_click(event, x, y, flags, param):
 	if event == cv2.EVENT_LBUTTONDOWN:
 		print(f'clicked at ({y}, {x})')
