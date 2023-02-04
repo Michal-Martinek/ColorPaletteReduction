@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 import os
 
 os.chdir(os.path.dirname(__file__))
@@ -50,11 +51,13 @@ def doKMeans(colors, k, maxIterations, hyperIterations):
 	dists = None
 
 	# TODO: remember the best means we have already seen
-	# TODO: reuse the arrays
-	# TODO: add timing of iterations, maybe if it's stuck raise error
 	for i in range(maxIterations): # TODO: try to guess the optimal stopping point based on the costs
+		startTime = time.time()
 		cost, dists = adjustClusterCenters(colors, means, k, hyperIterations, dists)
 		costHistory.append(cost)
+		if DEBUG:
+			duration = (time.time() - startTime) * 1000
+			print(f'Iteration {str(i).rjust(len(str(maxIterations)))} took {duration:.2f} ms')
 	means = means[np.argmin(costHistory[-1])]
 	return means, np.array(costHistory)
 def applyColorPalette(img, colors, means):
