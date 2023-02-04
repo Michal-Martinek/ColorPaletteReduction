@@ -4,18 +4,21 @@ import os
 
 os.chdir(os.path.dirname(__file__))
 DEBUG = False
+SAVE = True
 
 # algorithm ------------------------------
-def getDistances(colors, means):
+def getDistances(colors, means, dists=None):
 	extended = False
 	if len(means.shape) == 2:
 		extended = True
 		means = means[np.newaxis]
-	diff = colors[np.newaxis, :, np.newaxis].astype('int32') - means[:, np.newaxis].astype('int32')
-	dists = np.sum(diff ** 2, axis=-1)
+	if dists is None:
+		dists = np.empty((means.shape[0], colors.shape[0], means.shape[1]), dtype='int32')
+	
+	np.sum((colors[np.newaxis, :, np.newaxis].astype('int32') - means[:, np.newaxis].astype('int32')) ** 2, axis=-1, out=dists)
 	return dists[0] if extended else dists
-def adjustClusterCenters(colors, means, k, hyperIterations) -> int:
-	dists = getDistances(colors, means)
+def adjustClusterCenters(colors, means, k, hyperIterations, dists=None):
+	dists = getDistances(colors, means, dists)
 	clusterIdx = np.argmin(dists, axis=2)
 
 	costs = np.zeros((hyperIterations,))
@@ -28,7 +31,7 @@ def adjustClusterCenters(colors, means, k, hyperIterations) -> int:
 			if clusterPoints.shape[0] == 0:
 				continue
 			means[hyperIdx, meanIdx] = np.sum(clusterPoints, axis=0) / clusterPoints.shape[0]
-	return costs
+	return costs, dists
 def initMeans(colors, k, hyperIterations): # TODO: better init of means, maybe pick ony ones with low cost
 	withoutRepeats = np.unique(colors, axis=0)
 	assert withoutRepeats.shape[0] > k, 'the k is too big'
@@ -37,12 +40,13 @@ def initMeans(colors, k, hyperIterations): # TODO: better init of means, maybe p
 def doKMeans(colors, k, maxIterations, hyperIterations):
 	means = initMeans(colors, k, hyperIterations)
 	costHistory = []
+	dists = None
 
 	# TODO: remember the best means we have already seen
 	# TODO: reuse the arrays
 	# TODO: add timing of iterations, maybe if it's stuck raise error
 	for i in range(maxIterations): # TODO: try to guess the optimal stopping point based on the costs
-		cost = adjustClusterCenters(colors, means, k, hyperIterations)
+		cost, dists = adjustClusterCenters(colors, means, k, hyperIterations, dists)
 		costHistory.append(cost)
 	means = means[np.argmin(costHistory[-1])]
 	return means, np.array(costHistory)
@@ -83,6 +87,8 @@ def main():
 	means, costHistory = doKMeans(colors, k_means, iterations, hyperIterations)
 	reducedPalette = applyColorPalette(img, colors, means)
 	
+	if SAVE:
+		cv2.imwrite('saved.png', reducedPalette)
 	if DEBUG:
 		showCostDiagrams(costHistory, hyperIterations)
 	cv2.imshow('Bird', img)
@@ -90,6 +96,7 @@ def main():
 	cv2.setMouseCallback('Bird', mouse_click)
 	while cv2.getWindowProperty('Bird', cv2.WND_PROP_VISIBLE) >= 1:
 		cv2.waitKey(10)
+	cv2.destroyAllWindows()
 
 if __name__ == '__main__':
 	main()
