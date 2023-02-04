@@ -57,7 +57,10 @@ def doKMeans(colors, k, maxIterations, hyperIterations):
 		costHistory.append(cost)
 		if DEBUG:
 			duration = (time.time() - startTime) * 1000
-			print(f'Iteration {str(i).rjust(len(str(maxIterations)))} took {duration:.2f} ms')
+			durationS = f'{duration:.2f}'
+			if duration > 1000:
+				durationS = durationS[:-6] + '_' + durationS[-6:]
+			print(f'Iteration {str(i).rjust(len(str(maxIterations)))} took {durationS} ms')
 	means = means[np.argmin(costHistory[-1])]
 	return means, np.array(costHistory)
 def applyColorPalette(img, colors, means):
@@ -105,7 +108,7 @@ def main():
 		showCostDiagrams(costHistory, hyperIterations)
 	cv2.imshow('Bird', img)
 	cv2.imshow('Reduced', reducedPalette)
-	cv2.setMouseCallback('Bird', mouse_click)
+	if DEBUG: cv2.setMouseCallback('Bird', mouse_click)
 	while cv2.getWindowProperty('Bird', cv2.WND_PROP_VISIBLE) >= 1:
 		cv2.waitKey(10)
 	cv2.destroyAllWindows()
