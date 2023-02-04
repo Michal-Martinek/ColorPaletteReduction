@@ -57,6 +57,7 @@ def applyColorPalette(img, colors, means):
 
 # UI ------------------------------------------
 def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, boundaries=0.05):
+	assert startTimestep < costHistory.shape[0], 'invalid startTimestep for given costHistory'
 	diagWidth = (costHistory.shape[0] - startTimestep) * widthScale + 1
 	# map the ranges (max, min) -> ((1-boundaries) * height, bot * height)
 	minCost = np.min(costHistory[startTimestep:])
