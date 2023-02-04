@@ -3,17 +3,24 @@ import numpy as np
 import os
 
 os.chdir(os.path.dirname(__file__))
-DEBUG = False
+DEBUG = True
 SAVE = True
+MAX_MEGS_FOR_DISTS = 200
 
 # algorithm ------------------------------
+def initDists(shape):
+	expectedSize = shape[0] * shape[1] * shape[2] * 4 / 1_000_000
+	if expectedSize > MAX_MEGS_FOR_DISTS:
+		raise RuntimeError(f'Expected size {expectedSize:.1f} MB of the dists array would be probably too large,\n\tchange the MAX_MEGS_FOR_DISTS const respectively of your hardware')
+	dists = np.empty(shape, dtype='int32')
+	return dists
 def getDistances(colors, means, dists=None):
 	extended = False
 	if len(means.shape) == 2:
 		extended = True
 		means = means[np.newaxis]
 	if dists is None:
-		dists = np.empty((means.shape[0], colors.shape[0], means.shape[1]), dtype='int32')
+		dists = initDists((means.shape[0], colors.shape[0], means.shape[1]))
 	
 	np.sum((colors[np.newaxis, :, np.newaxis].astype('int32') - means[:, np.newaxis].astype('int32')) ** 2, axis=-1, out=dists)
 	return dists[0] if extended else dists
@@ -21,7 +28,7 @@ def adjustClusterCenters(colors, means, k, hyperIterations, dists=None):
 	dists = getDistances(colors, means, dists)
 	clusterIdx = np.argmin(dists, axis=2)
 
-	costs = np.zeros((hyperIterations,))
+	costs = np.zeros((hyperIterations,), dtype='int64')
 	for hyperIdx in range(hyperIterations): # TODO: do something about the loops
 		for meanIdx in range(k):
 			isRelevant = clusterIdx[hyperIdx] == meanIdx
@@ -58,6 +65,7 @@ def applyColorPalette(img, colors, means):
 # UI ------------------------------------------
 def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, boundaries=0.05):
 	assert startTimestep < costHistory.shape[0], 'invalid startTimestep for given costHistory'
+	assert costHistory.shape[0] > startTimestep + 1, 'graph can\'t be shown for one iteration'
 	diagWidth = (costHistory.shape[0] - startTimestep) * widthScale + 1
 	# map the ranges (max, min) -> ((1-boundaries) * height, bot * height)
 	minCost = np.min(costHistory[startTimestep:])
