@@ -67,6 +67,12 @@ def applyColorPalette(img, colors, means):
 	dists = getDistances(colors, means)
 	clusterIdx = np.argmin(dists, axis=1)
 	return means[clusterIdx].reshape((img.shape[0], img.shape[1], 3))
+def processImg(img, Kmeans, iterations, hyperIterations):
+	assert img is not None, 'the img appears to be None'
+	colors = img.reshape((-1, 3))
+	means, costHistory = doKMeans(colors, Kmeans, iterations, hyperIterations)
+	reducedPalette = applyColorPalette(img, colors, means)
+	return reducedPalette, costHistory
 
 # UI ------------------------------------------
 def showCostDiagrams(costHistory, hyperIterations, startTimestep=2, height=600, widthScale=3, boundaries=0.05):
@@ -93,14 +99,13 @@ def mouse_click(event, x, y, flags, param):
 
 def main():
 	# k-means params
-	k_means = 8
-	iterations = 20
-	hyperIterations = 5
+	Kmeans = 4
+	iterations = 10
+	hyperIterations = 4
 
 	img = cv2.imread('bird-original.png')
-	colors = img.reshape((-1, 3))
-	means, costHistory = doKMeans(colors, k_means, iterations, hyperIterations)
-	reducedPalette = applyColorPalette(img, colors, means)
+
+	reducedPalette, costHistory = processImg(img, Kmeans, iterations, hyperIterations)
 	
 	if SAVE:
 		cv2.imwrite('saved.png', reducedPalette)
